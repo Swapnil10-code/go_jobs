@@ -1,12 +1,12 @@
 package jobs
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/driver/mysql"
@@ -18,10 +18,12 @@ var err *error
 
 const DNS = "root:admin@tcp(127.0.0.1:3306)/godb?charset=utf8mb4&parseTime=True&loc=Local"
 
-type Jobs struct {
-	gorm.Model
-	jobid     string `json:"jobid"`
-	jobstatus string `json:"jobstatus"`
+type ConnectionDetails struct {
+	user     string
+	password string
+	host     string
+	port     string
+	database string
 }
 
 func InitialMigration() {
@@ -35,33 +37,26 @@ func InitialMigration() {
 
 func Get(c *fiber.Ctx) error {
 
-	// Getting the job ID from the URL query parameters
-	jobIDStr := c.Query("id")
-	if jobIDStr == "" {
-		c.Status(fiber.StatusBadRequest).Send("Missing job ID")
-		return
-	}
+	// Get the id parameter from the request
+	id := c.Params("id")
 
-	// Converting the job ID to an integer
-	jobID, err := strconv.Atoi(jobIDStr)
+	// Querying the database to see if the id matches the lastid of any row
+	var lastid string
+	err := db.QueryRow("SELECT lastid FROM table WHERE lastid = ?", id).Scan(&lastid)
 	if err != nil {
-		c.Status(fiber.StatusBadRequest).Send("Invalid job ID")
+		// If the id doesn't match the lastid of any row, return "Processing"
+		if err == sql.ErrNoRows {
+			c.Send("Processing")
+			return
+		}
+		// If there was an error executing the query, log the error and return an error message
+		log.Println(err)
+		c.Send("Error executing query")
 		return
 	}
 
-	// Look up the job by ID
-	job, ok := jobs[jobID]
-	if !ok {
-		c.Status(fiber.StatusNotFound).Send("Job not found")
-		return
-	}
-
-	// Return the status of the job
-	if(c.Status==http.StatusOK)
-	fmt.Println("Processed")
-	else
-	fmt.Println("Processing")
-
+	// If the id matches the lastid of a row, return "Processed"
+	c.Send("Processed")
 }
 
 func Post(c *fiber.Ctx) error {
