@@ -57,7 +57,7 @@ func Get(c *fiber.Ctx) error {
 	}
 
 	// Return the status of the job
-	if(job.Status=200)
+	if(c.Status==http.StatusOK)
 	fmt.Println("Processed")
 	else
 	fmt.Println("Processing")
